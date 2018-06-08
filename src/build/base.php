@@ -22,7 +22,6 @@ class base {
      * 启动处理
      */
     public function bootstrap() {
-        error_reporting(0);
         set_error_handler([$this, 'error'], E_ALL);
         set_exception_handler([$this, 'exception']);
         register_shutdown_function([$this, 'fatalError']);
@@ -34,14 +33,71 @@ class base {
      * @param $e
      */
     public function exception($e) {
-        //命令行错误
+        #命令行错误
         logger::error('EXCEPTION', $e->getMessage() . " FILE:" . $e->getFile() . '(' . $e->getLine() . ')');
-        if (DEBUG && !IS_API) {
-            require __DIR__ . '/exception.php';
+        if (DEBUG) {
+            $this->error($e->getCode(), $e->getMessage(), $e->getFile(), $e->getLine());
         } else {
             $this->closeDebugShowError($e->getMessage(), $e->getCode());
         }
         exit;
+    }
+
+    /**
+     * 致命错误处理(PHP≤5.6)
+     * @return [type] [description]
+     */
+    public function fatalError() {
+        if (function_exists('error_get_last')) {
+            $e = error_get_last();
+            #命令行错误
+            logger::error('EXCEPTION', $e['message'] . " FILE:" . $e['file'] . '(' . $e['line'] . ')');
+            if (DEBUG) {
+                $this->error($e['type'], $e['message'], $e['file'], $e['line']);
+            } else {
+                $this->closeDebugShowError($e['message'], $e['type']);
+            }
+            $g = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
+            exit;
+        }
+    }
+
+    /**
+     * 错误处理
+     *
+     * @param $errno
+     * @param $error
+     * @param $file
+     * @param $line
+     */
+    public function error($errno, $error, $file, $line) {
+        $title   = $this->errorType($errno);
+        $content = $error . '在文件[' . addslashes($file) . ']第 ' . $line . ' 行';
+        switch ($errno) {
+        case 1;
+        case 4;
+        case 16;
+        case 64;
+        case 256;
+            $body = "<script>console.error('[PHP]{$title}:',\"{$content}\")</script>";
+            break;
+        case 2;
+        case 32;
+        case 128;
+        case 512;
+        case 2048;
+            $body = "<script>console.warn('[PHP]{$title}:',\"{$content}\")</script>";
+            break;
+        case 8;
+        case 1024;
+        case 4096;
+        case 8192;
+        case 16384;
+        default:
+            $body = "<script>console.info('[PHP]{$title}:',\"{$content}\")</script>";
+            break;
+        }
+        echo $body;
     }
 
     /**
@@ -58,65 +114,6 @@ class base {
     }
 
     /**
-     * 错误处理
-     *
-     * @param $errno
-     * @param $error
-     * @param $file
-     * @param $line
-     */
-    public function error($errno, $error, $file, $line) {
-        $msg = $error . "($errno)" . $file . " ($line).";
-        //命令行错误
-        switch ($errno) {
-        case E_USER_NOTICE:
-        case E_DEPRECATED:
-            break;
-        case E_NOTICE:
-            if (DEBUG && !IS_API) {
-                require __DIR__ . '/notice.php';
-            } else {
-                $this->closeDebugShowError($msg, $errno);
-            }
-            break;
-        case E_WARNING:
-            logger::error($this->errorType($errno), $msg);
-            if (DEBUG && !IS_API) {
-                require __DIR__ . '/debug.php';
-            } else {
-                $this->closeDebugShowError($msg, $errno);
-            }
-            exit;
-        default:
-            logger::error($this->errorType($errno), $msg);
-            if (DEBUG && !IS_API) {
-                require __DIR__ . '/debug.php';
-            } else {
-                $this->closeDebugShowError($msg, $errno);
-            }
-            exit;
-        }
-
-    }
-
-    /**
-     * 致命错误处理(PHP≤5.6)
-     * @return [type] [description]
-     */
-    public function fatalError() {
-        if (function_exists('error_get_last')) {
-            if ($e = error_get_last()) {
-                if (DEBUG && !IS_API) {
-                    require __DIR__ . '/fatal.php';
-                    die;
-                } else {
-                    $this->error($e['type'], $e['message'], $e['file'], $e['line']);
-                }
-            }
-        }
-    }
-
-    /**
      * 获取错误标识
      *
      * @param $type
@@ -127,49 +124,49 @@ class base {
         switch ($type) {
         case 1;
         case E_ERROR: // 1 //
-            return 'E_ERROR';
+            return '致命错误';
         case 2;
         case E_WARNING: // 2 //
-            return 'E_WARNING';
+            return '警告错误';
         case 4;
         case E_PARSE: // 4 //
-            return 'E_PARSE';
+            return '语法错误';
         case 8;
         case E_NOTICE: // 8 //
-            return 'E_NOTICE';
+            return '一般通知';
         case 16;
         case E_CORE_ERROR: // 16 //
-            return 'E_CORE_ERROR';
+            return '执行致命性错误';
         case 32;
         case E_CORE_WARNING: // 32 //
-            return 'E_CORE_WARNING';
+            return '执行警告错误';
         case 64;
         case E_COMPILE_ERROR: // 64 //
-            return 'E_COMPILE_ERROR';
+            return '编译致命性错误';
         case 128;
         case E_COMPILE_WARNING: // 128 //
-            return 'E_COMPILE_WARNING';
+            return '编译警告级错误';
         case 256;
         case E_USER_ERROR: // 256 //
-            return 'E_USER_ERROR';
+            return '用户自定义错误';
         case 512;
         case E_USER_WARNING: // 512 //
-            return 'E_USER_WARNING';
+            return '用户自定义警告';
         case 1024;
         case E_USER_NOTICE: // 1024 //
-            return 'E_USER_NOTICE';
+            return '用户自定义提醒';
         case 2048;
         case E_STRICT: // 2048 //
-            return 'E_STRICT';
+            return '编码标准化警告';
         case 4096;
         case E_RECOVERABLE_ERROR: // 4096 //
-            return 'E_RECOVERABLE_ERROR';
+            return '可恢复错误';
         case 8192;
         case E_DEPRECATED: // 8192 //
-            return 'E_DEPRECATED';
+            return '弃用代码';
         case 16384;
         case E_USER_DEPRECATED: // 16384 //
-            return 'E_USER_DEPRECATED';
+            return '用户自定义弃用代码';
         }
         return $type;
     }
@@ -227,11 +224,10 @@ class base {
      *
      * @return void|array
      */
-    public function trace($value = '[hdphp]', $label = '', $level = 'DEBUG', $record = false) {
+    public function trace($value = '[this7]', $label = '', $level = 'DEBUG', $record = false) {
         static $trace = [];
-
-        if ('[hdphp]' == $value) {
-            // 获取trace信息
+        if ('[this7]' == $value) {
+            #获取trace信息
             return $trace;
         } else {
             $level = strtoupper($level);

@@ -85,13 +85,6 @@
 		</div>
 	</div>
 </div>
-<?php if (defined('HDPHP_VERSION')) {?>
-	<div class="copyright">
-		<a href="http://www.hdphp.com" title="HDPHP官网" target="_blank">
-			<b>HDPHP <?php echo HDPHP_VERSION; ?></b>
-		</a>
-		[ <a href="http://www.hdphp.com" class='hdphp' title="hdphp" target="_blank">服务化/组件化/模块化的未来框架产品 </a>]
-	</div>
-<?php }?>
+
 </body>
 </html>
