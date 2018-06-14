@@ -28,7 +28,6 @@ class debug {
         if (!self::$link) {
             self::$link = new base();
         }
-
         return self::$link;
     }
 

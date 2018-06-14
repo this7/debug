@@ -33,10 +33,9 @@ class base {
      * @param $e
      */
     public function exception($e) {
-        #命令行错误
-        logger::error('EXCEPTION', $e->getMessage() . " FILE:" . $e->getFile() . '(' . $e->getLine() . ')');
         if (DEBUG) {
-            $this->error($e->getCode(), $e->getMessage(), $e->getFile(), $e->getLine());
+            $trace_list = $this->stackTrace($e->getTrace());
+            $this->error($e->getCode(), $e->getMessage(), $e->getFile(), $e->getLine(), $trace_list);
         } else {
             $this->closeDebugShowError($e->getMessage(), $e->getCode());
         }
@@ -50,16 +49,57 @@ class base {
     public function fatalError() {
         if (function_exists('error_get_last')) {
             $e = error_get_last();
-            #命令行错误
-            logger::error('EXCEPTION', $e['message'] . " FILE:" . $e['file'] . '(' . $e['line'] . ')');
             if (DEBUG) {
-                $this->error($e['type'], $e['message'], $e['file'], $e['line']);
+                $error_trace = $this->stackTrace();
+                $this->error($e['type'], $e['message'], $e['file'], $e['line'], $error_trace);
             } else {
                 $this->closeDebugShowError($e['message'], $e['type']);
             }
-            $g = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
             exit;
         }
+    }
+
+    /**
+     * 堆栈跟踪
+     * @return [type]        [description]
+     */
+    public function stackTrace($data = '') {
+        $error_array = [];
+        if ($data) {
+            foreach ($data as $key => $value) {
+                $error_array[$key]['file']    = isset($value['file']) ? $value['file'] : $value['args'][0];
+                $error_array[$key]['line']    = isset($value['line']) ? $value['line'] : 0;
+                $class                        = isset($value['class']) ? $value['class'] : '';
+                $type                         = isset($value['type']) ? $value['type'] : '';
+                $function                     = isset($value['function']) ? $value['function'] . '()' : '';
+                $error_array[$key]['message'] = $class . $type . $function;
+            }
+        } else {
+            $error_log   = ROOT_DIR . DS . 'temp/debug/error_log.txt';
+            $error_trace = file_get_contents($error_log);
+            $error_list  = explode(PHP_EOL, $error_trace);
+            if (stripos($error_trace, "Stack trace")) {
+                foreach ($error_list as $key => $value) {
+                    if ($key > 1) {
+                        $line_list = explode(' ', $value);
+                        if (count($line_list) == 8) {
+                            $line                         = strripos($line_list[7], ":");
+                            $error_array[$key]['message'] = $line_list[6];
+                            $error_array[$key]['file']    = substr($line_list[7], 0, $line);
+                            $error_array[$key]['line']    = substr($line_list[7], $line + 1);
+                        }
+                        if (count($line_list) == 9) {
+                            $line                         = strripos($line_list[8], ":");
+                            $error_array[$key]['message'] = $line_list[7];
+                            $error_array[$key]['file']    = substr($line_list[8], 0, $line);
+                            $error_array[$key]['line']    = substr($line_list[8], $line + 1);
+                        }
+                    }
+                }
+            }
+            file_put_contents($error_log, '');
+        }
+        return array_values($error_array);
     }
 
     /**
@@ -70,23 +110,27 @@ class base {
      * @param $file
      * @param $line
      */
-    public function error($errno, $error, $file, $line) {
+    public function error($errno, $error, $file, $line, $traces = '') {
+        if (empty($error)) {
+            return;
+        }
         $title   = $this->errorType($errno);
         $content = $error . '在文件[' . addslashes($file) . ']第 ' . $line . ' 行';
         switch ($errno) {
+        case 0;
         case 1;
         case 4;
         case 16;
         case 64;
         case 256;
-            $body = "<script>console.error('[PHP]{$title}:',\"{$content}\")</script>";
+            $type = 'error';
             break;
         case 2;
         case 32;
         case 128;
         case 512;
         case 2048;
-            $body = "<script>console.warn('[PHP]{$title}:',\"{$content}\")</script>";
+            $type = 'warn';
             break;
         case 8;
         case 1024;
@@ -94,10 +138,16 @@ class base {
         case 8192;
         case 16384;
         default:
-            $body = "<script>console.info('[PHP]{$title}:',\"{$content}\")</script>";
+            $type = 'info';
             break;
         }
-        echo $body;
+        #判断是否API请求
+        if (IS_API) {
+            $array = array('code' => '900', 'type' => $type, 'errno' => $errno, 'error' => $error, 'file' => $file, 'line' => $line, 'traces' => $traces);
+            echo to_json($array);
+        } else {
+            require __DIR__ . '/exception.php';
+        }
     }
 
     /**
@@ -108,7 +158,7 @@ class base {
         if (IS_API) {
             echo to_json(['msg' => $msg, 'code' => $code]);
         } else {
-            require __DIR__ . '/bug.php';
+            require __DIR__ . ' / bug . php';
         }
         die;
     }

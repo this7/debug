@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 	<meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/>
-	<title>THIS7框架提示(exception.php)</title>
+	<title>THIS7框架提示(fatal.php)</title>
 	<style type="text/css">
 		div.main {
 			font-family: "Microsoft Yahei", "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -66,14 +66,17 @@
 		:(
 	</div>
 	<div class="msg">
-		<?php echo $e->getMessage(); ?>
+		<?php echo $error; ?>
+		<p style="font-size: 14px;margin: 15px 0;color:#999;">
+			THIS7 框架错误调试器
+		</p>
 	</div>
 	<div class="info">
 		<div class="title">
 			File:
 		</div>
 		<div class="path">
-			<?php echo 'File:' . $e->getFile() . '  Line:' . $e->getLine(); ?>
+			<?php echo 'File:' . $file . '  Line:' . $line; ?>
 		</div>
 	</div>
 	<div class="info">
@@ -81,10 +84,14 @@
 			Trace
 		</div>
 		<div class="path">
-			<?php echo nl2br($e->__toString()); ?>
+			<?php $error = '';
+foreach ($traces as $id => $f): ?>
+				<?php if (isset($f['file'])): ?>
+					<?php echo "#$id " . $f['file'] . "({$f['line']})<br/>"; ?>
+				<?php endif;?>
+			<?php endforeach;?>
 		</div>
 	</div>
 </div>
-
 </body>
 </html>
