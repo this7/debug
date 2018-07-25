@@ -75,7 +75,11 @@ class base {
                 $error_array[$key]['message'] = $class . $type . $function;
             }
         } else {
-            $error_log   = ROOT_DIR . DS . 'temp/debug/error_log.txt';
+            $error_log = ROOT_DIR . DS . 'temp/debug/error_log.txt';
+            #如果文件不存在则创建
+            if (!file_exists($error_log)) {
+                to_mkdir($error_log, '', true);
+            }
             $error_trace = file_get_contents($error_log);
             $error_list  = explode(PHP_EOL, $error_trace);
             if (stripos($error_trace, "Stack trace")) {
