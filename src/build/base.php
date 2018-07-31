@@ -22,9 +22,30 @@ class base {
      * 启动处理
      */
     public function bootstrap() {
-        set_error_handler([$this, 'error'], E_ALL);
-        set_exception_handler([$this, 'exception']);
-        register_shutdown_function([$this, 'fatalError']);
+        #设置DEBUG错误
+        $debug = is_boolean(($_GET['type'] == 'dapi'), true) . is_boolean(DEBUG, true) . is_boolean(XDEBUG, true);
+        switch ($debug) {
+        case '111':
+            #报告所有错误
+            error_reporting(E_ALL);
+            break;
+        case '100':
+        case '110':
+            #报告运行时错误
+            error_reporting(E_ERROR | E_WARNING | E_PARSE);
+            set_error_handler([$this, 'error'], E_ALL);
+            set_exception_handler([$this, 'exception']);
+            register_shutdown_function([$this, 'fatalError']);
+            break;
+        case '101':
+        case '000':
+        case '001':
+        case '010':
+        case '011':
+            #禁用错误报告
+            error_reporting(0);
+            break;
+        }
     }
 
     /**
