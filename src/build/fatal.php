@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 	<meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/>
-	<title>hits7框架提示</title>
+	<title>thid7框架提示</title>
 	<style type="text/css">
 		div.main {
 			font-family: "Microsoft Yahei", "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -54,7 +54,7 @@
 			font-size: 20px;
 		}
 
-		div.copyright a.hits7 {
+		div.copyright a.thid7 {
 			font-size: 14px;
 			color: #aaaaaa;
 		}
@@ -66,14 +66,17 @@
 		:(
 	</div>
 	<div class="msg">
-		<?php echo $e->getMessage(); ?>
+		<?php echo $e['message']; ?>
+		<p style="font-size: 14px;margin: 15px 0;color:#999;">
+			Severity: fatalError
+		</p>
 	</div>
 	<div class="info">
 		<div class="title">
 			File:
 		</div>
 		<div class="path">
-			<?php echo 'File:' . $e->getFile() . '  Line:' . $e->getLine(); ?>
+			<?php echo 'File:' . $e['file'] . '  Line:' . $e['line']; ?>
 		</div>
 	</div>
 	<div class="info">
@@ -81,7 +84,12 @@
 			Trace
 		</div>
 		<div class="path">
-			<?php echo nl2br($e->__toString()); ?>
+			<?php $error = '';
+foreach (debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS) as $id => $f): ?>
+				<?php if (isset($f['file'])): ?>
+					<?php echo "#$id " . $f['file'] . "({$f['line']})<br/>"; ?>
+				<?php endif;?>
+			<?php endforeach;?>
 		</div>
 	</div>
 </div>

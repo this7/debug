@@ -1,0 +1,22 @@
+{
+    "defer":
+    {
+        "name": "延时加载",
+        "value": false
+    },
+    "notice":
+    {
+        "name": "注意消息显示",
+        "value": true
+    },
+    "error":
+    {
+        "name": "错误页面",
+        "value": ""
+    },
+    "versions":
+    {
+        "name": "版本号",
+        "value": "1.0"
+    }
+}
