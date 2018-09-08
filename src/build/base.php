@@ -23,18 +23,27 @@ class base {
      * 启动处理
      */
     public function bootstrap() {
+        $this->is_debug = true;
         #设置DEBUG错误
         $debug = is_boolean(($_GET['type'] == 'api'), true) . is_boolean(DEBUG, true) . is_boolean(XDEBUG, true);
         switch ($debug) {
         case '011':
             #报告所有错误
             error_reporting(E_ALL);
+            #错误信息
+            ini_set('display_errors', true);
+            #php启动错误信息
+            ini_set('display_startup_errors', true);
             break;
         case '010':
         case '001':
             #报告运行时错误
-            //error_reporting(E_ERROR | E_WARNING | E_PARSE);
             error_reporting(0);
+            #错误信息
+            ini_set('display_errors', false);
+            #php关闭错误信息
+            ini_set('display_startup_errors', false);
+            #执行错误提示函数
             set_error_handler([$this, 'error'], E_ALL);
             set_exception_handler([$this, 'exception']);
             register_shutdown_function([$this, 'fatalError']);
@@ -59,10 +68,13 @@ class base {
      * @return   HTML               调试界面
      */
     public function display($object = array()) {
-        extract(static_storage());
-        echo isset($object['model']) && $object['model'] == 'api' ? '<!doctype html><html lang="zh"><head><meta charset="UTF - 8"><title> This7框架Debug调试器</title></head><body>' : '';
-        require __DIR__ . '/debug.php';
-        echo isset($object['model']) && $object['model'] == 'api' ? '</body></html>' : '';
+        if ($this->is_debug) {
+            extract(static_storage());
+            echo isset($object['model']) && $object['model'] == 'api' ? '<!doctype html><html lang="zh"><head><meta charset="UTF - 8"><title> This7框架Debug调试器</title></head><body>' : '';
+            require __DIR__ . '/debug.php';
+            echo isset($object['model']) && $object['model'] == 'api' ? '</body></html>' : '';
+        }
+
     }
 
     /**
