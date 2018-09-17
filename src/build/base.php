@@ -23,7 +23,7 @@ class base {
      * 启动处理
      */
     public function bootstrap() {
-        $this->is_debug = true;
+
         #设置DEBUG错误
         $debug = is_boolean(($_GET['type'] == 'api'), true) . is_boolean(DEBUG, true) . is_boolean(XDEBUG, true);
         switch ($debug) {
@@ -37,6 +37,7 @@ class base {
             break;
         case '010':
         case '001':
+            $this->is_debug = true;
             #报告运行时错误
             error_reporting(0);
             #错误信息
@@ -68,8 +69,11 @@ class base {
      * @return   HTML               调试界面
      */
     public function display($object = array()) {
-        if ($this->is_debug) {
-            extract(static_storage());
+        if ($this->is_debug && DEBUG) {
+            $debug_data = static_storage();
+            if (!empty($debug_data)) {
+                extract(static_storage());
+            }
             echo isset($object['model']) && $object['model'] == 'api' ? '<!doctype html><html lang="zh"><head><meta charset="UTF - 8"><title> This7框架Debug调试器</title></head><body>' : '';
             require __DIR__ . '/debug.php';
             echo isset($object['model']) && $object['model'] == 'api' ? '</body></html>' : '';
@@ -101,7 +105,7 @@ class base {
         if (!$this->is_debug) {
             echo to_json(['msg' => $msg, 'code' => 1]);
         } else {
-            require C("debug", "error");
+            require ROOT_DIR . C("debug", "error");
         }
         die;
     }
