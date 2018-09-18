@@ -10,6 +10,7 @@
  * @link      http://www.ub-7.com
  */
 namespace this7\debug\build;
+use Exception;
 
 /**
  * 错误处理
@@ -18,67 +19,34 @@ namespace this7\debug\build;
  * @package
  */
 class base {
-    public $is_debug = true;
-    /**
-     * 启动处理
-     */
+
+    public $exception;
+
     public function bootstrap() {
-
-        #设置DEBUG错误
-        $debug = is_boolean(($_GET['type'] == 'api'), true) . is_boolean(DEBUG, true) . is_boolean(XDEBUG, true);
-        switch ($debug) {
-        case '011':
-            #报告所有错误
-            error_reporting(E_ALL);
-            #错误信息
-            ini_set('display_errors', true);
-            #php启动错误信息
-            ini_set('display_startup_errors', true);
-            break;
-        case '010':
-        case '001':
-            $this->is_debug = true;
-            #报告运行时错误
-            error_reporting(0);
-            #错误信息
-            ini_set('display_errors', false);
-            #php关闭错误信息
-            ini_set('display_startup_errors', false);
-            #执行错误提示函数
-            set_error_handler([$this, 'error'], E_ALL);
-            set_exception_handler([$this, 'exception']);
-            register_shutdown_function([$this, 'fatalError']);
-            break;
-        case '000':
-        case '111':
-        case '110':
-        case '101':
-        case '100':
-            $this->is_debug = false;
-            #禁用错误报告
-            error_reporting(0);
-            break;
-        }
-    }
-
-    /**
-     * 显示调试界面
-     * @Author   Sean       Yan
-     * @DateTime 2018-09-03
-     * @param    array      $object 数据对象
-     * @return   HTML               调试界面
-     */
-    public function display($object = array()) {
-        if ($this->is_debug && DEBUG) {
-            $debug_data = static_storage();
-            if (!empty($debug_data)) {
-                extract(static_storage());
+        #执行错误提示函数
+        set_error_handler([$this, 'error'], E_ALL);
+        set_exception_handler([$this, 'exception']);
+        register_shutdown_function([$this, 'fatalError']);
+        #Debug大于所有
+        if (DEBUG) {
+            if (XDEBUG) {
+                #报告所有错误
+                error_reporting(E_ALL);
+                #错误信息
+                ini_set('display_errors', true);
+                #php启动错误信息
+                ini_set('display_startup_errors', true);
+            } else {
+                #报告运行时错误
+                error_reporting(0);
+                #错误信息
+                ini_set('display_errors', false);
+                #php关闭错误信息
+                ini_set('display_startup_errors', false);
             }
-            echo isset($object['model']) && $object['model'] == 'api' ? '<!doctype html><html lang="zh"><head><meta charset="UTF - 8"><title> This7框架Debug调试器</title></head><body>' : '';
-            require __DIR__ . '/debug.php';
-            echo isset($object['model']) && $object['model'] == 'api' ? '</body></html>' : '';
+        } else {
+            error_reporting(0);
         }
-
     }
 
     /**
@@ -87,27 +55,24 @@ class base {
      * @param $e
      */
     public function exception($e) {
-        //命令行错误
-        logger::writeLog('EXCEPTION', $e->getMessage() . " FILE:" . $e->getFile() . '(' . $e->getLine() . ')');
-        if (DEBUG == true) {
+        switch ($_GET['type']) {
+        case 'api':
+            ob_get_clean();
+            $data = array(
+                'code' => $e->getCode(),
+                'msg'  => $e->getMessage() . " FILE:" . str_replace(ROOT_DIR, "", $e->getFile()) . '(' . $e->getLine() . ')',
+            );
+            header("content-type:application/json");
+            echo json_encode($data, JSON_UNESCAPED_UNICODE);
+            exit();
+            break;
+        case 'dapi':
+            $this->exception[] = $e;
+            break;
+        case 'app':
             require __DIR__ . '/exception.php';
-        } else {
-            $this->closeDebugShowError($e->getMessage());
+            break;
         }
-        exit;
-    }
-
-    /**
-     * 关闭调试模式时显示错误
-     * @param string $msg
-     */
-    protected function closeDebugShowError($msg = '系统错误，请稍候访问') {
-        if (!$this->is_debug) {
-            echo to_json(['msg' => $msg, 'code' => 1]);
-        } else {
-            require ROOT_DIR . C("debug", "error");
-        }
-        die;
     }
 
     /**
@@ -119,45 +84,40 @@ class base {
      * @param $line
      */
     public function error($errno, $error, $file, $line) {
-        $msg = $error . "($errno)" . $file . " ($line).";
-        //命令行错误
-        switch ($errno) {
-        case E_USER_NOTICE:
-        case E_DEPRECATED:
-            break;
-        case E_NOTICE:
-            if (DEBUG == true && C('debug', 'notice')) {
-                require __DIR__ . '/notice.php';
-            }
-            break;
-        case E_WARNING:
-            logger::writeLog($this->errorType($errno), $msg);
-            if (DEBUG == true) {
-                require __DIR__ . '/debug.php';
-            } else {
-                $this->closeDebugShowError($error);
-            }
-            exit;
-        default:
-            logger::writeLog($this->errorType($errno), $msg);
-            if (DEBUG == true) {
-                require __DIR__ . '/debug.php';
-            } else {
-                $this->closeDebugShowError($error);
-            }
-            exit;
+        try {
+            throw new MyException($error, $errno, $file, $line);
+        } catch (MyException $e) {
+            ERRORCODE($e);
         }
-
     }
 
-    //致命错误处理
+    /**
+     * 致命错误处理
+     * @Author   Sean       Yan
+     * @DateTime 2018-09-18
+     * @return   [type]     [description]
+     */
     public function fatalError() {
         if (function_exists('error_get_last')) {
             if ($e = error_get_last()) {
-                require __DIR__ . '/fatal.php';
-                die;
+                try {
+                    throw new MyException($e['message'], $e['type'], $e['file'], $e['line']);
+                } catch (MyException $e) {
+                    ERRORCODE($e);
+                }
             }
         }
+    }
+
+    /**
+     * 显示调试界面
+     * @Author   Sean       Yan
+     * @DateTime 2018-09-03
+     * @param    array      $object 数据对象
+     * @return   HTML               调试界面
+     */
+    public function display($object = array()) {
+        P($object);
     }
 
     /**
@@ -204,33 +164,9 @@ class base {
         return $type;
     }
 
-    /**
-     * trace 信息
-     *
-     * @param  string  $value  变量
-     * @param  string  $label  标签
-     * @param  string  $level  日志级别(或者页面Trace的选项卡)
-     * @param  boolean $record 是否记录日志
-     *
-     * @return void|array
-     */
-    public function trace($value = '[hdphp]', $label = '', $level = 'DEBUG', $record = false) {
-        static $trace = [];
-
-        if ('[hdphp]' == $value) {
-            // 获取trace信息
-            return $trace;
-        } else {
-            $info  = ($label ? $label . ':' : '') . print_r($value, true);
-            $level = strtoupper($level);
-            if (IS_AJAX || $record) {
-                logger::record($info, $level);
-            } else {
-                if (!isset($trace[$level])) {
-                    $trace[$level] = [];
-                }
-                $trace[$level][] = $info;
-            }
+    public function __destruct() {
+        if (!empty($this->exception)) {
+            P($this->exception);
         }
     }
 
