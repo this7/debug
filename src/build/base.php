@@ -56,17 +56,8 @@ class base {
      */
     public function exception($e) {
         switch ($_GET['type']) {
-        case 'api':
-            ob_get_clean();
-            $data = array(
-                'code' => $e->getCode(),
-                'msg'  => $e->getMessage() . " FILE:" . str_replace(ROOT_DIR, "", $e->getFile()) . '(' . $e->getLine() . ')',
-            );
-            header("content-type:application/json");
-            echo json_encode($data, JSON_UNESCAPED_UNICODE);
-            exit();
-            break;
         case 'dapi':
+        case 'api':
             $this->exception[] = $e;
             break;
         case 'app':
@@ -160,13 +151,38 @@ class base {
         case E_USER_DEPRECATED: // 16384 //
             return 'USER_DEPRECATED';
         }
-
         return $type;
     }
 
     public function __destruct() {
         if (!empty($this->exception)) {
-            P($this->exception);
+            $data  = [];
+            $count = count($this->exception);
+            if ($count == 1) {
+                $e = $this->exception[0];
+                if ($e->getCode() === 0) {
+                    $data['code'] = 0;
+                    $data['msg']  = 'success';
+                    $data['data'] = json_decode($e->getMessage(), true);
+                } else {
+                    $data['code'] = $e->getCode();
+                    $data['msg']  = $e->getMessage();
+                    $data['data'] = " FILE:" . str_replace(ROOT_DIR, "", $e->getFile()) . '(' . $e->getLine() . ')';
+                }
+            } else {
+                foreach ($this->exception as $key => $e) {
+                    if ($e->getCode() === 0) {
+                        $data['code'] = 0;
+                        $data['msg']  = 'success';
+                        $data['data'] = json_decode($e->getMessage(), true);
+                    } else {
+                        $data['error'][] = "[$e->getCode()]" . $e->getMessage() . " FILE:" . str_replace(ROOT_DIR, "", $e->getFile()) . '(' . $e->getLine() . ')';
+                    }
+                }
+            }
+            header("content-type:application/json");
+            echo json_encode($data, JSON_UNESCAPED_UNICODE);
+            exit();
         }
     }
 
