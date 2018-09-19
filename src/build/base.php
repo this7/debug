@@ -22,6 +22,8 @@ class base {
 
     public $exception;
 
+    public $is_display = false;
+
     public function bootstrap() {
         #执行错误提示函数
         set_error_handler([$this, 'error'], E_ALL);
@@ -107,8 +109,23 @@ class base {
      * @param    array      $object 数据对象
      * @return   HTML               调试界面
      */
-    public function display($object = array()) {
-        P($object);
+    public function display() {
+        P("返回数据:");
+        P($this->reverse);
+        P("错误提示:");
+        P($this->exception);
+
+    }
+
+    /**
+     * 页面数据分配
+     * @Author   Sean       Yan
+     * @DateTime 2018-09-19
+     * @param    string     $value [description]
+     * @return   [type]            [description]
+     */
+    public function assign($value = '') {
+        $this->reverse = $value;
     }
 
     /**
@@ -155,35 +172,54 @@ class base {
     }
 
     public function __destruct() {
-        if (!empty($this->exception)) {
-            $data  = [];
-            $count = count($this->exception);
-            if ($count == 1) {
-                $e = $this->exception[0];
-                if ($e->getCode() === 0) {
-                    $data['code'] = 0;
-                    $data['msg']  = 'success';
-                    $data['data'] = json_decode($e->getMessage(), true);
-                } else {
-                    $data['code'] = $e->getCode();
-                    $data['msg']  = $e->getMessage();
-                    $data['data'] = " FILE:" . str_replace(ROOT_DIR, "", $e->getFile()) . '(' . $e->getLine() . ')';
-                }
-            } else {
-                foreach ($this->exception as $key => $e) {
+        switch ($_GET['type']) {
+        case 'dapi':
+            $this->display();
+            break;
+        case 'api':
+            if (!empty($this->exception)) {
+                $data  = [];
+                $count = count($this->exception);
+                if ($count == 1) {
+                    $e = $this->exception[0];
                     if ($e->getCode() === 0) {
                         $data['code'] = 0;
                         $data['msg']  = 'success';
                         $data['data'] = json_decode($e->getMessage(), true);
                     } else {
-                        $data['error'][] = "[$e->getCode()]" . $e->getMessage() . " FILE:" . str_replace(ROOT_DIR, "", $e->getFile()) . '(' . $e->getLine() . ')';
+                        $data['code'] = $e->getCode();
+                        $data['msg']  = $e->getMessage();
+                        $data['data'] = array(
+                            'file' => str_replace(ROOT_DIR, "", $e->getFile()),
+                            'line' => $e->getLine(),
+                        );
+                    }
+                } else {
+                    foreach ($this->exception as $key => $e) {
+                        if ($e->getCode() === 0) {
+                            $data['code'] = 0;
+                            $data['msg']  = 'success';
+                            $data['data'] = json_decode($e->getMessage(), true);
+                        } else {
+                            $arrayName = array(
+                                'code'    => $e->getCode(),
+                                'message' => $e->getMessage(),
+                                'file'    => str_replace(ROOT_DIR, "", $e->getFile()),
+                                'line'    => $e->getLine(),
+                            );
+                        }
                     }
                 }
+                #清除之前的缓存
+                ob_end_clean();
+                #设置JSON数据输出
+                header("content-type:application/json");
+                echo json_encode($data, JSON_UNESCAPED_UNICODE);
+                exit();
             }
-            header("content-type:application/json");
-            echo json_encode($data, JSON_UNESCAPED_UNICODE);
-            exit();
+            break;
         }
+
     }
 
 }
