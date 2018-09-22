@@ -20,9 +20,9 @@ use Exception;
  */
 class base {
 
-    public $exception;
+    public $exception = [];
 
-    public $is_display = false;
+    public $reverse;
 
     public function bootstrap() {
         #执行错误提示函数
@@ -62,7 +62,8 @@ class base {
         case 'api':
             $this->exception[] = $e;
             break;
-        case 'app':
+        case 'page':
+        default:
             require __DIR__ . '/exception.php';
             break;
         }
@@ -177,49 +178,60 @@ class base {
             $this->display();
             break;
         case 'api':
-            if (!empty($this->exception)) {
-                $data  = [];
-                $count = count($this->exception);
-                if ($count == 1) {
-                    $e = $this->exception[0];
-                    if ($e->getCode() === 0) {
-                        $data['code'] = 0;
-                        $data['msg']  = 'success';
-                        $data['data'] = json_decode($e->getMessage(), true);
-                    } else {
-                        $data['code'] = $e->getCode();
-                        $data['msg']  = $e->getMessage();
-                        $data['data'] = array(
-                            'file' => str_replace(ROOT_DIR, "", $e->getFile()),
-                            'line' => $e->getLine(),
-                        );
-                    }
-                } else {
-                    foreach ($this->exception as $key => $e) {
-                        if ($e->getCode() === 0) {
-                            $data['code'] = 0;
-                            $data['msg']  = 'success';
-                            $data['data'] = json_decode($e->getMessage(), true);
-                        } else {
-                            $arrayName = array(
-                                'code'    => $e->getCode(),
-                                'message' => $e->getMessage(),
-                                'file'    => str_replace(ROOT_DIR, "", $e->getFile()),
-                                'line'    => $e->getLine(),
-                            );
-                        }
-                    }
-                }
-                #清除之前的缓存
-                ob_end_clean();
-                #设置JSON数据输出
-                header("content-type:application/json");
-                echo json_encode($data, JSON_UNESCAPED_UNICODE);
-                exit();
+            if (empty($this->reverse)) {
+                $data = $this->get_extension_info();
+                unset($data['error']);
+                unset($data['trace']);
+            } else {
+                $data = array(
+                    'code' => 0,
+                    'msg'  => "succeed",
+                    'data' => $this->reverse,
+                );
             }
+            #清除之前的缓存
+            ob_end_clean();
+            #设置JSON数据输出
+            header("content-type:application/json");
+            echo json_encode($data, JSON_UNESCAPED_UNICODE);
+            exit();
             break;
         }
 
+    }
+
+    /**
+     * @Author   Sean       Yan
+     * @DateTime 2018-09-19
+     * @param    string     $value [description]
+     * @return   [type]            [description]
+     */
+    public function get_extension_info() {
+        if (!empty($this->exception)) {
+            $error = array();
+            foreach ($this->exception as $key => $e) {
+                if ($key === 0) {
+                    $error = array(
+                        'code'  => $e->getCode(),
+                        'msg'   => $e->getMessage(),
+                        'file'  => str_replace(ROOT_DIR, "", $e->getFile()),
+                        'line'  => $e->getLine(),
+                        'trace' => nl2br($e->__toString()),
+                        'error' => [],
+                    );
+                } else {
+                    $error['error'][$key - 1] = array(
+                        'code'  => $e->getCode(),
+                        'msg'   => $e->getMessage(),
+                        'file'  => str_replace(ROOT_DIR, "", $e->getFile()),
+                        'line'  => $e->getLine(),
+                        'trace' => nl2br($e->__toString()),
+                    );
+                }
+            }
+            return $error;
+        }
+        return false;
     }
 
 }
