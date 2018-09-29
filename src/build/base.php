@@ -183,14 +183,20 @@ class base {
                 unset($data['error']);
                 unset($data['trace']);
             } else {
-                $data = array(
-                    'code' => 0,
-                    'msg'  => "succeed",
-                    'data' => $this->reverse,
-                );
+                if (is_array($this->reverse) && isset($this->reverse['default'])) {
+                    $data = $this->reverse;
+                } else {
+                    $data = array(
+                        'code' => 0,
+                        'msg'  => "succeed",
+                        'data' => $this->reverse,
+                    );
+                }
             }
             #清除之前的缓存
-            ob_end_clean();
+            if (ob_get_level()) {
+                ob_end_clean();
+            }
             #设置JSON数据输出
             header("content-type:application/json");
             echo json_encode($data, JSON_UNESCAPED_UNICODE);
