@@ -57,7 +57,11 @@ class base {
      * @param $e
      */
     public function exception($e) {
-        switch ($_GET['type']) {
+        $type = "system";
+        if (isset($_GET['type'])) {
+            $type = $_GET['type'];
+        }
+        switch ($type) {
         case 'dapi':
         case 'api':
             $this->exception[] = $e;
